@@ -1,0 +1,316 @@
+<!-- ============================================================
+  BLACK BARREL WOOD CO. — CHAT WIDGET
+  Paste this entire block into Squarespace's Code Injection
+  (Settings → Advanced → Code Injection → Footer), or into
+  any Custom HTML block on the site.
+
+  After deploying to Vercel, the API_URL below is already set.
+  If your Vercel project has a different name, update line 18.
+============================================================ -->
+<script>
+(function () {
+  'use strict';
+
+  function init() {
+    var root = document.createElement('div');
+    root.id = 'bbwc-chat-root';
+    document.body.appendChild(root);
+
+  var API_URL = 'https://blackbarrel-chatbot.vercel.app/api/chat';
+  var WELCOME = "Hey! 👋 I'm the Black Barrel assistant. Whether you have a project in mind or just want to explore what's possible — I'm here to help. What are you thinking about?";
+
+  /* ── Styles ─────────────────────────────────────────────── */
+  var css = [
+    '#bbwc-chat-root{pointer-events:none!important;}',
+    '#bchat-btn,#bchat-window{pointer-events:all!important;}',
+
+    '#bchat-btn{position:fixed!important;bottom:24px!important;right:24px!important;',
+    'width:62px!important;height:62px!important;border-radius:50%!important;',
+    'background:linear-gradient(135deg,#7A3D0A,#C47820)!important;color:#fff!important;',
+    'border:none!important;cursor:pointer!important;',
+    'box-shadow:0 4px 22px rgba(122,61,10,.55)!important;font-size:26px!important;',
+    'z-index:2147483647!important;transition:transform .2s,box-shadow .2s;',
+    'display:flex!important;align-items:center!important;justify-content:center!important;',
+    'padding:0!important;margin:0!important;line-height:1!important;}',
+    '#bchat-btn:hover{transform:scale(1.09)!important;box-shadow:0 6px 28px rgba(122,61,10,.7)!important;}',
+
+    '#bchat-window{position:fixed!important;bottom:90px!important;right:24px!important;',
+    'width:360px!important;height:min(540px,calc(100vh - 110px))!important;',
+    'background:#fff!important;border-radius:18px!important;',
+    'box-shadow:0 12px 48px rgba(0,0,0,.22)!important;',
+    'display:flex!important;flex-direction:column!important;',
+    'z-index:2147483646!important;overflow:hidden!important;',
+    'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif!important;',
+    'opacity:0;transform:translateY(14px) scale(.97);transition:opacity .25s,transform .25s;',
+    'pointer-events:none!important;margin:0!important;padding:0!important;}',
+    '#bchat-window.bopen{opacity:1!important;transform:translateY(0) scale(1)!important;',
+    'pointer-events:all!important;}',
+
+    '#bchat-header{background:linear-gradient(135deg,#0D0A06,#1E1409)!important;color:#fff!important;',
+    'padding:14px 16px!important;display:flex!important;align-items:center!important;',
+    'gap:11px!important;flex-shrink:0!important;}',
+    '#bchat-avatar{width:40px!important;height:40px!important;border-radius:50%!important;',
+    'background:linear-gradient(135deg,#7A3D0A,#C47820)!important;',
+    'display:flex!important;align-items:center!important;justify-content:center!important;',
+    'font-size:20px!important;flex-shrink:0!important;}',
+    '#bchat-header-info h3{margin:0!important;font-size:15px!important;font-weight:600!important;color:#fff!important;}',
+    '#bchat-header-info p{margin:3px 0 0!important;font-size:12px!important;opacity:.72;color:#e8d5b0!important;}',
+    '#bchat-x{margin-left:auto!important;background:none!important;border:none!important;',
+    'color:#fff!important;cursor:pointer!important;font-size:20px!important;',
+    'opacity:.65;transition:opacity .15s;padding:4px!important;line-height:1!important;}',
+    '#bchat-x:hover{opacity:1!important;}',
+
+    '#bchat-msgs{flex:1!important;overflow-y:auto!important;padding:14px 12px!important;',
+    'display:flex!important;flex-direction:column!important;gap:10px!important;',
+    'background:#f7f5f2!important;min-height:0!important;}',
+    '#bchat-msgs::-webkit-scrollbar{width:4px!important;}',
+    '#bchat-msgs::-webkit-scrollbar-thumb{background:#ddd!important;border-radius:2px!important;}',
+
+    '.bm{display:flex!important;gap:8px!important;max-width:87%!important;}',
+    '.bm.bbot{align-self:flex-start!important;}',
+    '.bm.buser{align-self:flex-end!important;flex-direction:row-reverse!important;}',
+    '.bm-av{width:28px!important;height:28px!important;border-radius:50%!important;',
+    'background:linear-gradient(135deg,#7A3D0A,#C47820)!important;',
+    'display:flex!important;align-items:center!important;justify-content:center!important;',
+    'font-size:13px!important;flex-shrink:0!important;align-self:flex-end!important;}',
+    '.bm-b{padding:9px 13px!important;border-radius:16px!important;',
+    'font-size:14px!important;line-height:1.55!important;color:#222!important;',
+    'max-width:100%!important;word-break:break-word!important;}',
+    '.bm.bbot .bm-b{background:#fff!important;border-radius:16px 16px 16px 4px!important;',
+    'box-shadow:0 1px 5px rgba(0,0,0,.09)!important;}',
+    '.bm.buser .bm-b{background:linear-gradient(135deg,#7A3D0A,#C47820)!important;',
+    'color:#fff!important;border-radius:16px 16px 4px 16px!important;}',
+    '.bm-b a{color:#7A3D0A!important;text-decoration:underline!important;}',
+    '.bm.buser .bm-b a{color:#ffe0b2!important;}',
+
+    '.btyp{display:flex!important;gap:4px!important;padding:10px 13px!important;',
+    'background:#fff!important;border-radius:16px 16px 16px 4px!important;',
+    'box-shadow:0 1px 5px rgba(0,0,0,.09)!important;align-self:flex-start!important;}',
+    '.btyp span{width:7px!important;height:7px!important;background:#C47820!important;',
+    'border-radius:50%!important;animation:bb 1.2s infinite!important;opacity:.55!important;}',
+    '.btyp span:nth-child(2){animation-delay:.2s!important;}',
+    '.btyp span:nth-child(3){animation-delay:.4s!important;}',
+    '@keyframes bb{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}',
+
+    '#bchat-input-row{padding:11px 12px!important;display:flex!important;gap:8px!important;',
+    'background:#fff!important;border-top:1px solid #ececec!important;flex-shrink:0!important;}',
+    '#bchat-in{flex:1!important;border:1.5px solid #e0e0e0!important;border-radius:24px!important;',
+    'padding:9px 14px!important;font-size:14px!important;outline:none!important;',
+    'transition:border-color .2s;font-family:inherit!important;resize:none!important;',
+    'box-sizing:border-box!important;}',
+    '#bchat-in:focus{border-color:#C47820!important;}',
+    '#bchat-go{width:38px!important;height:38px!important;border-radius:50%!important;',
+    'flex-shrink:0!important;background:linear-gradient(135deg,#7A3D0A,#C47820)!important;',
+    'color:#fff!important;border:none!important;cursor:pointer!important;',
+    'display:flex!important;align-items:center!important;justify-content:center!important;',
+    'transition:transform .15s,opacity .15s;}',
+    '#bchat-go:hover{transform:scale(1.09)!important;}',
+    '#bchat-go:disabled{opacity:.4!important;cursor:default!important;transform:none!important;}',
+    '#bchat-foot{text-align:center!important;padding:6px!important;font-size:11px!important;',
+    'color:#ccc!important;background:#fff!important;flex-shrink:0!important;}',
+
+    '#bqr{display:flex!important;flex-wrap:wrap!important;gap:6px!important;padding:4px 4px 8px 4px!important;}',
+    '.bqr-btn{background:#fff!important;border:1.5px solid #C47820!important;color:#7A3D0A!important;',
+    'border-radius:16px!important;padding:6px 12px!important;font-size:12.5px!important;',
+    'cursor:pointer!important;transition:background .15s,color .15s!important;',
+    'font-family:inherit!important;line-height:1.4!important;white-space:nowrap!important;}',
+    '.bqr-btn:hover{background:#7A3D0A!important;color:#fff!important;}',
+
+    '@media(max-width:480px){',
+    '#bchat-window{right:0!important;bottom:0!important;width:100%!important;',
+    'height:92vh!important;border-radius:18px 18px 0 0!important;}',
+    '#bchat-btn{bottom:16px!important;right:16px!important;}}'
+  ].join('');
+
+  var sEl = document.createElement('style');
+  sEl.textContent = css;
+  document.head.appendChild(sEl);
+
+  /* ── DOM ────────────────────────────────────────────────── */
+  root.innerHTML =
+    '<button id="bchat-btn" aria-label="Chat with Black Barrel Wood Co.">🪵</button>' +
+    '<div id="bchat-window" role="dialog" aria-label="Black Barrel Wood Co. Chat Assistant">' +
+      '<div id="bchat-header">' +
+        '<div id="bchat-avatar">🪵</div>' +
+        '<div id="bchat-header-info"><h3>Black Barrel Assistant</h3><p>Custom woodworking — let\'s talk</p></div>' +
+        '<button id="bchat-x" aria-label="Close">✕</button>' +
+      '</div>' +
+      '<div id="bchat-msgs"></div>' +
+      '<div id="bchat-input-row">' +
+        '<input id="bchat-in" type="text" placeholder="Tell me about your project…" maxlength="500" />' +
+        '<button id="bchat-go" aria-label="Send">' +
+          '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>' +
+        '</button>' +
+      '</div>' +
+      '<div id="bchat-foot">Powered by Black Barrel AI</div>' +
+    '</div>';
+
+  /* ── Quick replies ──────────────────────────────────────── */
+  var QUICK_REPLIES = [
+    { label: '🪵 Our Work',         text: 'What kind of pieces do you make?' },
+    { label: '✏️ Custom Orders',    text: 'How does the custom order process work?' },
+    { label: '💰 Pricing',          text: 'How much does a custom piece cost?' },
+    { label: '📋 Order Guide',      text: 'Where can I find the order guide?' },
+    { label: '📞 Contact Michael',  text: 'How do I get in touch with Michael?' },
+  ];
+
+  function addQuickReplies() {
+    var d = document.createElement('div');
+    d.id = 'bqr';
+    QUICK_REPLIES.forEach(function(qr) {
+      var b = document.createElement('button');
+      b.className = 'bqr-btn';
+      b.textContent = qr.label;
+      b.addEventListener('click', function() {
+        var el = document.getElementById('bqr');
+        if (el) el.remove();
+        inp.value = qr.text;
+        send();
+      });
+      d.appendChild(b);
+    });
+    msgs.appendChild(d);
+    scroll();
+  }
+
+  /* ── State & refs ───────────────────────────────────────── */
+  var open = false, loading = false, history = [];
+  var btn   = document.getElementById('bchat-btn');
+  var win   = document.getElementById('bchat-window');
+  var xBtn  = document.getElementById('bchat-x');
+  var msgs  = document.getElementById('bchat-msgs');
+  var inp   = document.getElementById('bchat-in');
+  var goBtn = document.getElementById('bchat-go');
+
+  /* ── Helpers ────────────────────────────────────────────── */
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function fmt(text) {
+    var s = esc(text);
+    s = s.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    s = s.replace(/\n/g, '<br>');
+    s = s.replace(/(https?:\/\/[^\s<>"]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+    return s;
+  }
+
+  function scroll() { msgs.scrollTop = msgs.scrollHeight; }
+
+  function addBot(text) {
+    var d = document.createElement('div');
+    d.className = 'bm bbot';
+    d.innerHTML = '<div class="bm-av">🪵</div><div class="bm-b">' + fmt(text) + '</div>';
+    msgs.appendChild(d);
+    msgs.scrollTop = d.offsetTop - msgs.offsetTop;
+  }
+
+  function addUser(text) {
+    var d = document.createElement('div');
+    d.className = 'bm buser';
+    d.innerHTML = '<div class="bm-b">' + esc(text) + '</div>';
+    msgs.appendChild(d);
+    scroll();
+  }
+
+  function showTyping() {
+    var d = document.createElement('div');
+    d.className = 'btyp'; d.id = 'btyp';
+    d.innerHTML = '<span></span><span></span><span></span>';
+    msgs.appendChild(d); scroll();
+  }
+
+  function hideTyping() {
+    var el = document.getElementById('btyp');
+    if (el) el.remove();
+  }
+
+  /* ── Toggle ─────────────────────────────────────────────── */
+  function toggle() {
+    open = !open;
+    win.classList.toggle('bopen', open);
+    btn.textContent = open ? '✕' : '🪵';
+    if (open && msgs.childElementCount === 0) { addBot(WELCOME); addQuickReplies(); }
+    if (open) setTimeout(function(){ inp.focus(); }, 280);
+  }
+
+  /* ── Send ───────────────────────────────────────────────── */
+  async function send() {
+    var text = inp.value.trim();
+    if (!text || loading) return;
+    inp.value = '';
+    loading = true;
+    goBtn.disabled = true;
+
+    var qr = document.getElementById('bqr');
+    if (qr) qr.remove();
+    addUser(text);
+    history.push({ role: 'user', content: text });
+    showTyping();
+
+    try {
+      var res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: history }),
+      });
+      hideTyping();
+      var data = await res.json();
+      if (res.status === 429) {
+        addBot("You've sent a lot of messages! Please wait a bit before trying again, or reach Michael directly at (416) 566-3854 🪵");
+        loading = false; goBtn.disabled = false; return;
+      }
+      if (!res.ok) throw new Error(data.error || 'Unknown error');
+      var reply = data.reply || "Sorry, I couldn't get a response — please try again!";
+      addBot(reply);
+      history.push({ role: 'assistant', content: reply });
+      if (history.length > 20) history = history.slice(-20);
+    } catch (e) {
+      hideTyping();
+      addBot("Oops — something went wrong on my end! Try again, or reach Michael directly at blackbarrelwoodco@gmail.com or (416) 566-3854 🪵");
+    }
+
+    loading = false;
+    goBtn.disabled = false;
+    inp.focus();
+  }
+
+  /* ── Events ─────────────────────────────────────────────── */
+  btn.addEventListener('click', toggle);
+  xBtn.addEventListener('click', toggle);
+  goBtn.addEventListener('click', send);
+  inp.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+
+  document.addEventListener('click', function (e) {
+    var btnRect = btn.getBoundingClientRect();
+    if (!open && e.clientX >= btnRect.left && e.clientX <= btnRect.right &&
+        e.clientY >= btnRect.top && e.clientY <= btnRect.bottom) {
+      e.stopPropagation();
+      toggle();
+    }
+  }, true);
+
+  document.addEventListener('touchend', function (e) {
+    var touch = e.changedTouches && e.changedTouches[0];
+    if (!touch) return;
+    var btnRect = btn.getBoundingClientRect();
+    if (!open && touch.clientX >= btnRect.left && touch.clientX <= btnRect.right &&
+        touch.clientY >= btnRect.top && touch.clientY <= btnRect.bottom) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggle();
+    }
+  }, true);
+
+  } // end init()
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
