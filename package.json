@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "vercel dev",
-    "preview": "node serve.js"
+    "preview": "node serve.js",
+    "test": "node --test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.40.0"

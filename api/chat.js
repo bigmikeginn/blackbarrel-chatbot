@@ -1,4 +1,8 @@
+const fs = require('node:fs');
+const path = require('node:path');
+
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+const FAQ_PATH = path.join(__dirname, '..', 'blackbarrel_wood_co_faq.csv');
 
 // ── Rate limiting ──────────────────────────────────────────
 const RATE_LIMIT_MAX    = 20;               // max messages per window
@@ -43,6 +47,63 @@ let cachedContext = null;
 let cacheExpiry = 0;
 const CACHE_TTL = 60 * 60 * 1000;
 
+function parseCsvRows(csv) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < csv.length; i++) {
+    const char = csv[i];
+    const next = csv[i + 1];
+
+    if (char === '"' && inQuotes && next === '"') {
+      field += '"';
+      i++;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      row.push(field);
+      field = '';
+    } else if ((char === '\n' || char === '\r') && !inQuotes) {
+      if (char === '\r' && next === '\n') i++;
+      row.push(field);
+      if (row.some((value) => value.trim())) rows.push(row);
+      row = [];
+      field = '';
+    } else {
+      field += char;
+    }
+  }
+
+  if (field || row.length) {
+    row.push(field);
+    if (row.some((value) => value.trim())) rows.push(row);
+  }
+
+  return rows;
+}
+
+function buildFaqContext() {
+  let csv;
+  try {
+    csv = fs.readFileSync(FAQ_PATH, 'utf8');
+  } catch (err) {
+    console.error('FAQ knowledge base missing:', err.message);
+    return 'FAQ knowledge base unavailable.';
+  }
+
+  const [header, ...rows] = parseCsvRows(csv);
+  if (!header || rows.length === 0) return 'FAQ knowledge base unavailable.';
+
+  return rows
+    .map(([category, question, answer]) => {
+      return `Category: ${category}\nQuestion: ${question}\nAnswer: ${answer}`;
+    })
+    .join('\n\n---\n\n')
+    .substring(0, 14000);
+}
+
 function stripHtml(html) {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, '')
@@ -82,54 +143,20 @@ async function buildContext() {
   }
 
   const pageContents = await Promise.all(PAGES_TO_SCRAPE.map(fetchPage));
+  const faqContent = buildFaqContext();
 
   const webContent = PAGES_TO_SCRAPE
     .map((url, i) => (pageContents[i] ? `[${url}]\n${pageContents[i]}` : null))
     .filter(Boolean)
     .join('\n\n---\n\n');
 
-  cachedContext = { webContent };
+  cachedContext = { webContent, faqContent };
   cacheExpiry = Date.now() + CACHE_TTL;
   return cachedContext;
 }
 
-module.exports = async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
-  const ip = getIp(req);
-  if (isRateLimited(ip)) {
-    return res.status(429).json({ error: 'Too many messages. Please wait a while before trying again.' });
-  }
-
-  let messages;
-  try {
-    messages = req.body?.messages;
-    if (!Array.isArray(messages) || messages.length === 0) throw new Error();
-    for (const m of messages) {
-      if (!m.role || typeof m.content !== 'string') throw new Error();
-      if (m.content.length > 1000) return res.status(400).json({ error: 'Message too long.' });
-    }
-  } catch {
-    return res.status(400).json({ error: 'Invalid request body' });
-  }
-
-  if (messages.length > 20) messages = messages.slice(-20);
-
-  try {
-    const { webContent } = await buildContext();
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-
-    if (!apiKey) {
-      console.error('ANTHROPIC_API_KEY not set');
-      return res.status(500).json({ error: 'API key not configured' });
-    }
-
-    const system = `You are a helpful, warm assistant for Black Barrel Wood Co. — a custom woodworking shop run by Michael and Rachel in Innisfil, Ontario. You help potential clients figure out if Black Barrel is a good fit for their project, understand the process, and take the next step toward getting a custom piece made.
+function buildSystemPrompt({ webContent, faqContent }) {
+  return `You are a helpful, warm assistant for Black Barrel Wood Co. — a custom woodworking shop run by Michael and Rachel in Innisfil, Ontario. You help potential clients figure out if Black Barrel is a good fit for their project, understand the process, and take the next step toward getting a custom piece made.
 
 === ABOUT BLACK BARREL WOOD CO. ===
 Black Barrel Wood Co. is a small, husband-and-wife custom woodworking business. Michael is the maker; Rachel helps with design and the creative process. What started as a hobby became a passion, then a business. They specialize in bespoke, functional wooden art and furniture — pieces built to the client's exact specs, combining rustic and modern aesthetics.
@@ -148,6 +175,13 @@ They are based in Innisfil, Ontario (Simcoe County) and serve clients locally an
 **Wood Species Available:**
 - Domestic hardwoods (most common): Ash, Cherry, Maple, Oak, Walnut, Birch, Hickory
 - Exotic species available but take longer to procure and cost significantly more
+
+=== CUSTOM BUYING GUIDANCE ===
+When customers are exploring custom furniture, help them understand the value in plain language: custom pieces are built to fit their exact space, style, use case, wood preference, dimensions, storage needs, and heirloom goals. Compared with off-the-shelf furniture, custom work offers better material quality, better proportions for the room, repairability, personal design control, and a piece that can become part of the home for decades.
+
+When asked about styles, explain that Black Barrel can work across styles such as mid-century, modern rustic, farmhouse, traditional, transitional, cottage, contemporary, and blended styles. Encourage customers to send reference photos, even if they like legs from one piece, colour from another, and hardware from a third.
+
+When asked about wood species, guide by priorities: walnut for rich high-end warmth, white oak for durability and a refined modern look, red oak for strength and value, cherry for warmth that deepens with age, maple for a bright dense surface, ash for light colour and strong grain, poplar for budget-friendly secondary parts, and hickory/birch when character or practicality fits the design. Do not overpromise availability; suggest Michael confirm current stock and sourcing.
 
 === PRICING ===
 - Custom furniture costs roughly **double** what you'd pay for a mass-produced equivalent of the same type.
@@ -205,13 +239,56 @@ Warm, craft-focused, genuine. Like a knowledgeable friend who works in woodworki
 - Never invent pricing, timelines, or availability — direct to Michael for specifics.
 - Always end on a helpful, encouraging note.
 - When someone is clearly ready to move forward, point them to the Order Guide and suggest emailing or calling Michael directly.
+- Prefer the FAQ knowledge base when it gives a more specific answer than the website scrape.
 
 === HANDOFF ===
 When someone is ready to get a quote or start a project:
 "The best next step is to download our [Custom Order Guide](https://www.blackbarrelwoodco.com/s/Custom-order-form-2024-compressed.pdf) — it covers everything you need before reaching out. Then feel free to email Michael directly at blackbarrelwoodco@gmail.com or call (416) 566-3854 (Mon–Fri, 9am–5pm). He's easy to work with and happy to talk through your vision."
 
+=== FAQ KNOWLEDGE BASE ===
+${faqContent || 'No FAQ data available.'}
+
 === WEBSITE CONTENT ===
 ${webContent || 'No website data available.'}`;
+}
+
+module.exports = async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  const ip = getIp(req);
+  if (isRateLimited(ip)) {
+    return res.status(429).json({ error: 'Too many messages. Please wait a while before trying again.' });
+  }
+
+  let messages;
+  try {
+    messages = req.body?.messages;
+    if (!Array.isArray(messages) || messages.length === 0) throw new Error();
+    for (const m of messages) {
+      if (!m.role || typeof m.content !== 'string') throw new Error();
+      if (m.content.length > 1000) return res.status(400).json({ error: 'Message too long.' });
+    }
+  } catch {
+    return res.status(400).json({ error: 'Invalid request body' });
+  }
+
+  if (messages.length > 20) messages = messages.slice(-20);
+
+  try {
+    const { webContent, faqContent } = await buildContext();
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+
+    if (!apiKey) {
+      console.error('ANTHROPIC_API_KEY not set');
+      return res.status(500).json({ error: 'API key not configured' });
+    }
+
+    const system = buildSystemPrompt({ webContent, faqContent });
 
     const response = await fetch(ANTHROPIC_API_URL, {
       method: 'POST',
@@ -242,4 +319,10 @@ ${webContent || 'No website data available.'}`;
     console.error('Chat error:', err);
     return res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
+};
+
+module.exports._test = {
+  buildFaqContext,
+  buildSystemPrompt,
+  parseCsvRows,
 };
