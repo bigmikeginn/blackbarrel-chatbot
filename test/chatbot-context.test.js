@@ -31,3 +31,7 @@ test('buildSystemPrompt includes buying guidance and FAQ context', () => {
   assert.match(prompt, /FAQ knowledge placeholder/);
   assert.match(prompt, /Website scrape placeholder/);
 });
+
+test('chat completion settings leave room for multi-species comparison answers', () => {
+  assert.equal(chat._test.CHAT_MAX_TOKENS, 700);
+});

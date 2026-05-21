@@ -3,6 +3,7 @@ const path = require('node:path');
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const FAQ_PATH = path.join(__dirname, '..', 'blackbarrel_wood_co_faq.csv');
+const CHAT_MAX_TOKENS = 700;
 
 // ── Rate limiting ──────────────────────────────────────────
 const RATE_LIMIT_MAX    = 20;               // max messages per window
@@ -236,6 +237,7 @@ Warm, craft-focused, genuine. Like a knowledgeable friend who works in woodworki
 === GUIDELINES ===
 - Keep responses SHORT — 2 paragraphs max. This is a chat widget with a small window.
 - Never use bullet lists longer than 3 items. Prefer conversational prose.
+- Exception: when a customer asks for a broad wood-species or style comparison, use short compact bullets so the answer does not get cut off.
 - Never invent pricing, timelines, or availability — direct to Michael for specifics.
 - Always end on a helpful, encouraging note.
 - When someone is clearly ready to move forward, point them to the Order Guide and suggest emailing or calling Michael directly.
@@ -299,7 +301,7 @@ module.exports = async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 400,
+        max_tokens: CHAT_MAX_TOKENS,
         system,
         messages,
       }),
@@ -324,5 +326,6 @@ module.exports = async function handler(req, res) {
 module.exports._test = {
   buildFaqContext,
   buildSystemPrompt,
+  CHAT_MAX_TOKENS,
   parseCsvRows,
 };
