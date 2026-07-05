@@ -254,10 +254,22 @@ ${faqContent || 'No FAQ data available.'}
 ${webContent || 'No website data available.'}`;
 }
 
+// Only the site's own pages may call this API from a browser. A wildcard here
+// would let any website embed the chatbot and burn our Anthropic credits.
+const ALLOWED_ORIGINS = new Set([
+  'https://www.blackbarrelwoodco.com',
+  'https://blackbarrelwoodco.com',
+  'http://localhost:3003', // local preview (serve.js)
+]);
+
 module.exports = async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  const origin = req.headers.origin;
+  res.setHeader('Vary', 'Origin');
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  }
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -272,7 +284,8 @@ module.exports = async function handler(req, res) {
     messages = req.body?.messages;
     if (!Array.isArray(messages) || messages.length === 0) throw new Error();
     for (const m of messages) {
-      if (!m.role || typeof m.content !== 'string') throw new Error();
+      if (m.role !== 'user' && m.role !== 'assistant') throw new Error();
+      if (typeof m.content !== 'string') throw new Error();
       if (m.content.length > 1000) return res.status(400).json({ error: 'Message too long.' });
     }
   } catch {
@@ -280,6 +293,10 @@ module.exports = async function handler(req, res) {
   }
 
   if (messages.length > 20) messages = messages.slice(-20);
+
+  // Rebuild the array so only role/content reach the Anthropic API — clients
+  // can't smuggle extra fields (cache_control, content blocks, etc.) through.
+  messages = messages.map((m) => ({ role: m.role, content: m.content }));
 
   try {
     const { webContent, faqContent } = await buildContext();
@@ -302,7 +319,13 @@ module.exports = async function handler(req, res) {
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: CHAT_MAX_TOKENS,
-        system,
+        // The system prompt (~8k tokens of FAQ + scraped site content) is stable
+        // for an hour (CACHE_TTL), so cache it: follow-up turns in a conversation
+        // read it at ~10% of input price instead of re-paying full price. Also
+        // caps the cost amplification if someone hammers the endpoint.
+        system: [
+          { type: 'text', text: system, cache_control: { type: 'ephemeral' } },
+        ],
         messages,
       }),
     });
