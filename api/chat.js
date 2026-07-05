@@ -269,6 +269,10 @@ module.exports = async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  } else if (origin) {
+    // CORS is not authentication, but browser callers that identify themselves
+    // with an unexpected Origin should fail closed instead of being processed.
+    return res.status(403).json({ error: 'Origin not allowed' });
   }
 
   if (req.method === 'OPTIONS') return res.status(200).end();
