@@ -245,7 +245,7 @@ Warm, craft-focused, genuine. Like a knowledgeable friend who works in woodworki
 
 === HANDOFF ===
 When someone is ready to get a quote or start a project:
-"The best next step is to download our [Custom Order Guide](https://www.blackbarrelwoodco.com/s/Custom-order-form-2024-compressed.pdf) — it covers everything you need before reaching out. Then feel free to email Michael directly at blackbarrelwoodco@gmail.com or call (416) 566-3854 (Mon–Fri, 9am–5pm). He's easy to work with and happy to talk through your vision."
+"The best next step is to download our [Custom Order Guide](https://www.blackbarrelwoodco.com/pdfs/custom-order-form.pdf) — it covers everything you need before reaching out. Then feel free to email Michael directly at blackbarrelwoodco@gmail.com or call (416) 566-3854 (Mon–Fri, 9am–5pm). He's easy to work with and happy to talk through your vision."
 
 === FAQ KNOWLEDGE BASE ===
 ${faqContent || 'No FAQ data available.'}
