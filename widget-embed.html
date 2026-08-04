@@ -192,7 +192,13 @@
     s = s.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
     s = s.replace(/\n/g, '<br>');
-    s = s.replace(/(https?:\/\/[^\s<>"]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+    // Autolink bare URLs, but skip URLs already inside an <a> created above
+    s = s.replace(/(https?:\/\/[^\s<>"]+)/g, function (match, url, offset, whole) {
+      var before = whole.slice(0, offset);
+      if (before.charAt(before.length - 1) === '"') return match;
+      if (/rel="noopener">$/.test(before)) return match;
+      return '<a href="' + url + '" target="_blank" rel="noopener">' + url + '</a>';
+    });
     return s;
   }
 
